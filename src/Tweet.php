@@ -2,7 +2,7 @@
 
 namespace CleytonBonamigo\ShareTwitter;
 
-class Tweet
+class Tweet extends AbstractController
 {
     /**
      * Construct the Tweet class.
