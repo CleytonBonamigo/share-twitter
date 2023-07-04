@@ -17,11 +17,13 @@ class Tweet extends AbstractController
     /**
      * Create a Tweet
      * See https://developer.twitter.com/en/docs/twitter-api/tweets/manage-tweets/api-reference/post-tweets
+     * @param array $params
      * @return $this
      */
-    public function create(): Tweet
+    public function create(array $params): Tweet
     {
         $this->setEndpoint('tweets');
+        $this->sendRequest($params);
         return $this;
     }
 }
