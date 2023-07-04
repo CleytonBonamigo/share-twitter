@@ -28,4 +28,14 @@ class Client
     {
         return new Tweet($this->settings);
     }
+
+    /**
+     * Access to Media class
+     * @return Media
+     * @throws \Exception
+     */
+    public function media(): Media
+    {
+        return new Media($this->settings);;
+    }
 }
