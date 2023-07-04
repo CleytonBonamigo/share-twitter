@@ -120,9 +120,9 @@ abstract class AbstractController
     /**
      * Perform a request to Twitter API, with OAuth1.
      * @param array<string> $data
-     * @return mixed
+     * @return array
      */
-    public function sendRequest(array $data = []): mixed
+    public function sendRequest(array $data = []): array
     {
         try {
             $stack = HandlerStack::create();
