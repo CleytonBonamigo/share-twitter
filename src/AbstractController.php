@@ -5,17 +5,15 @@ namespace CleytonBonamigo\ShareTwitter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Subscriber\Oauth\Oauth1;
 
 abstract class AbstractController
 {
     /** @const API_BASE_URL */
-    private const API_BASE_URL = 'https://api.twitter.com/api/2/';
+    private const API_BASE_URL = 'https://api.twitter.com/2/';
 
     /** @var string */
     private string $enpoint = '';
-
-    /** @var int */
-    private int $account_id;
 
     /** @var string */
     private string $access_token;
@@ -28,9 +26,6 @@ abstract class AbstractController
 
     /** @var string */
     private string $consumer_secret;
-
-    /** @var string */
-    private string $bearer_token;
 
     /**
      * Abstract Class Constructor
@@ -68,22 +63,18 @@ abstract class AbstractController
      */
     public function parseSettings(array $settings): void
     {
-        if(!isset($settings['account_id'],
-            $settings[ 'access_token'],
+        if(!isset($settings[ 'access_token'],
             $settings['access_token_secret'],
             $settings['consumer_key'],
-            $settings['consumer_secret'],
-            $settings['bearer_token']
+            $settings['consumer_secret']
         )){
             throw new \Exception('Incomplete settings');
         }
 
-        $this->account_id = (int)$settings['account_id'];
         $this->access_token = $settings['access_token'];
         $this->access_token_secret = $settings['access_token_secret'];
         $this->consumer_key = $settings['consumer_key'];
         $this->consumer_secret = $settings['consumer_secret'];
-        $this->bearer_token = $settings['bearer_token'];
     }
 
     /**
@@ -91,7 +82,7 @@ abstract class AbstractController
      * @param array<string> $data
      * @return mixed
      */
-    public function request(array $data = []): mixed
+    public function sendRequest(array $data = []): mixed
     {
         try {
             $stack = HandlerStack::create();
@@ -119,7 +110,21 @@ abstract class AbstractController
             ]);
 
             $body = json_decode($response->getBody()->getContents(), false, 512, JSON_THROW_ON_ERROR);
-            dd($body);
+            if($response->getStatusCode() >= 400){
+                $error = [
+                    'message' => "Error on endpoint {$this->getEndpoint()}"
+                ];
+                if($body){
+                    $error['details'] = $response;
+                }
+
+                throw new \RuntimeException(
+                    json_encode($error, JSON_THROW_ON_ERROR),
+                    $response->getStatusCode()
+                );
+            }
+
+            return $body;
         } catch (ServerException $e){
             $payload = json_decode(str_replace("\n", "", $e->getResponse()->getBody()->getContents()), false, 512,
                 JSON_THROW_ON_ERROR);
