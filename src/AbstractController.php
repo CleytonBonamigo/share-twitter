@@ -2,6 +2,7 @@
 
 namespace CleytonBonamigo\ShareTwitter;
 
+use CleytonBonamigo\ShareTwitter\Enums\Action;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\HandlerStack;
@@ -11,6 +12,12 @@ abstract class AbstractController
 {
     /** @const API_BASE_URL */
     private const API_BASE_URL = 'https://api.twitter.com/2/';
+
+    /** @const API_BASE_URL_UPLOAD */
+    private const API_BASE_URL_UPLOAD = 'https://upload.twitter.com/1.1/';
+
+    /** @var Action */
+    private Action $action;
 
     /** @var string */
     private string $enpoint = '';
@@ -35,6 +42,39 @@ abstract class AbstractController
     public function __construct(array $settings)
     {
         $this->parseSettings($settings);
+        $this->setAction(Action::POST_TWITTER);
+    }
+
+    /**
+     * Get Api Base URL, because of version 1 and 2.
+     * @return string
+     */
+    public function getApiBaseUrl(): string
+    {
+        if($this->getAction() === Action::UPLOAD){
+            return self::API_BASE_URL_UPLOAD;
+        }
+
+        return self::API_BASE_URL;
+    }
+
+    /**
+     * Set API Action
+     * @param Action $action
+     * @return void
+     */
+    public function setAction(Action $action): void
+    {
+        $this->action = $action;
+    }
+
+    /**
+     * Retrieve the API Action
+     * @return Action
+     */
+    public function getAction(): Action
+    {
+        return $this->action;
     }
 
     /**
@@ -94,7 +134,7 @@ abstract class AbstractController
             ]);
             $stack->push($middleware);
             $client = new Client([
-                'base_uri' => self::API_BASE_URL,
+                'base_uri' => $this->getApiBaseUrl(),
                 'handler' => $stack,
                 'auth' => 'oauth'
             ]);
