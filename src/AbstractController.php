@@ -34,6 +34,9 @@ abstract class AbstractController
     /** @var string */
     private string $consumer_secret;
 
+    /** @var bool  */
+    private bool $removeHeaders = false;
+
     /**
      * Abstract Class Constructor
      * @param array<string> $settings
@@ -97,6 +100,17 @@ abstract class AbstractController
     }
 
     /**
+     * Set variable to not send headers
+     * @param bool $remove
+     * @return AbstractController
+     */
+    public function removeHeaders(bool $remove = false): AbstractController
+    {
+        $this->removeHeaders = $remove;
+        return $this;
+    }
+
+    /**
      * @param array<string> $settings
      * @return void
      * @throws \Exception
@@ -120,11 +134,19 @@ abstract class AbstractController
     /**
      * Perform a request to Twitter API, with OAuth1.
      * @param array<string> $data
-     * @return array
+     * @param array<string>|null $headers
+     * @param string $bodyIndex
+     * @return mixed
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @throws \JsonException
      */
-    public function sendRequest(array $data = []): array
+    public function sendRequest(array $data = [], array $headers = null, string $bodyIndex = 'json'): mixed
     {
         try {
+            $defaulHeaders = [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json'
+            ];
             $stack = HandlerStack::create();
             $middleware = new Oauth1([
                 'consumer_key' => $this->consumer_key,
@@ -141,13 +163,15 @@ abstract class AbstractController
 
             $response = $client->request('POST', $this->getEndpoint(), [
                 'verify' => false,
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json'
-                ],
+                'headers' => !$this->removeHeaders ? ($headers ?? $defaulHeaders) : null,
                 // If you send an empty array, Twitter will return an error.
-                'json' => count($data) ? $data : null
+                $bodyIndex => count($data) ? $data : null
             ]);
+
+            // Some methods, like media APPENDS returns an empty body, but returns a 200 code
+            if($response->getBody()->getContents() === '' && $response->getStatusCode() === 200){
+                return '';
+            }
 
             $body = json_decode($response->getBody()->getContents(), false, 512, JSON_THROW_ON_ERROR);
             if($response->getStatusCode() >= 400){
