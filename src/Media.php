@@ -3,7 +3,9 @@
 namespace CleytonBonamigo\ShareTwitter;
 
 use CleytonBonamigo\ShareTwitter\Enums\Action;
+use CleytonBonamigo\ShareTwitter\Enums\Methods;
 use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Log;
 
 class Media extends AbstractController
 {
@@ -17,7 +19,21 @@ class Media extends AbstractController
         parent::__construct($settings);
     }
 
-    public function uploadImageFromUrl(string $url): void
+    public function uploadMediaFromUrl(string $url)
+    {
+        if (($file = file_get_contents($url)) === false) {
+            throw new \InvalidArgumentException(
+                'Please, add a readable file.',
+            );
+        }
+
+        $this->setAction(Action::UPLOAD);
+        $this->setMethod(Methods::POST);
+        $this->setEndpoint('media/upload.json');
+        $this->request(['media' => base64_encode($file)]);
+    }
+
+    /*public function uploadImageFromUrl(string $url): void
     {
         // Get the image content
         $imageContent = file_get_contents($url);
@@ -35,6 +51,9 @@ class Media extends AbstractController
         // Format the base64 image for use in data URIs
         $base64Image = 'data:' . $mimeType . ';base64,' . $base64Image;
 
+        echo $size.PHP_EOL;
+        echo $mimeType.PHP_EOL;
+
         $data = [
             'command' => 'INIT',
             'total_bytes' => $size,
@@ -44,37 +63,44 @@ class Media extends AbstractController
         $this->setAction(Action::UPLOAD);
         $this->setEndpoint('media/upload.json?'.http_build_query($data));
 
-        // Send an empty array to send as null on the body
-        $initUpload = $this->sendRequest([]);
-
-        $data = [
-            [
-                'name' => 'command',
-                'contents' => 'APPEND'
-            ],
-            [
-                'name' => 'media_id',
-                'contents' => $initUpload->media_id
-            ]
-        ];
+        $initUpload = $this->sendRequest();
+        Log::info(json_encode($initUpload));
 
         $this->setEndpoint('media/upload.json');
         foreach ($this->splitFile($base64Image) as $index => $chunk){
-            $data[] = [
-                'name' => 'segment_index',
-                'contents' => $index
-            ];
-            $data[] = [
-                'name' => 'media_data',
-                'contents' => $chunk
+            $data = [
+                [
+                    'name' => 'command',
+                    'contents' => 'APPEND'
+                ],
+                [
+                    'name' => 'media_id',
+                    'contents' => $initUpload->media_id
+                ],
+                [
+                    'name' => 'segment_index',
+                    'contents' => $index
+                ],
+                [
+                    'name' => 'media_data',
+                    'contents' => $chunk
+                ]
             ];
 
+            echo strlen($chunk).PHP_EOL;
+
             // If something goes wrong, it will generate an Exception
-            if($this->removeHeaders()->sendRequest($data, null, 'multipart') !== ''){
-                throw new \RuntimeException('Something goes worn in APPEND command and it not caused any other error, please investigate id');
+            if($return = $this->setRemoveHeaders(true)->sendRequest($data, null, 'multipart') !== ''){
+                dd($return);
+                throw new \RuntimeException('Something goes wrong in APPEND command and it not caused any other error, please investigate id');
             }
         }
-    }
+
+        //$this->setMethod(Methods::GET);
+        sleep(20);
+        $this->setRemoveHeaders(true)->setEndpoint("media/upload.json?command=FINALIZE&media_id={$initUpload->media_id}");
+        dd($this->sendRequest());
+    }*/
 
     /**
      * Split file into chunks of 5MB
