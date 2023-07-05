@@ -44,9 +44,48 @@ class Media extends AbstractController
         $this->setAction(Action::UPLOAD);
         $this->setEndpoint('media/upload.json?'.http_build_query($data));
 
-        //Send an empty array to send as null on the body
+        // Send an empty array to send as null on the body
         $initUpload = $this->sendRequest([]);
 
-        dd($initUpload);
+        $data = [
+            [
+                'name' => 'command',
+                'contents' => 'APPEND'
+            ],
+            [
+                'name' => 'media_id',
+                'contents' => $initUpload->media_id
+            ]
+        ];
+
+        $this->setEndpoint('media/upload.json');
+        foreach ($this->splitFile($base64Image) as $index => $chunk){
+            $data[] = [
+                'name' => 'segment_index',
+                'contents' => $index
+            ];
+            $data[] = [
+                'name' => 'media_data',
+                'contents' => $chunk
+            ];
+
+            // If something goes wrong, it will generate an Exception
+            if($this->removeHeaders()->sendRequest($data, null, 'multipart') !== ''){
+                throw new \RuntimeException('Something goes worn in APPEND command and it not caused any other error, please investigate id');
+            }
+        }
+    }
+
+    /**
+     * Split file into chunks of 5MB
+     * @param string $base64String
+     * @param int $chunkSize
+     * @return array
+     */
+    public function splitFile(string $base64String, int $chunkSize = 5 * 1024 * 1024): array
+    {
+        $chunkSizeBase64 = $chunkSize * 3 / 4;
+        $chunkSizeBase64 -= $chunkSizeBase64 % 4;
+        return str_split($base64String, $chunkSizeBase64);
     }
 }
