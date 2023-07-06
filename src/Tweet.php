@@ -2,6 +2,9 @@
 
 namespace CleytonBonamigo\ShareTwitter;
 
+use CleytonBonamigo\ShareTwitter\Enums\Action;
+use CleytonBonamigo\ShareTwitter\Enums\Methods;
+
 class Tweet extends AbstractController
 {
     /**
@@ -18,12 +21,14 @@ class Tweet extends AbstractController
      * Create a Tweet
      * See https://developer.twitter.com/en/docs/twitter-api/tweets/manage-tweets/api-reference/post-tweets
      * @param array $params
-     * @return array
+     * @return \stdClass
      * @throws \JsonException
      */
-    public function create(array $params): array
+    public function create(array $params): \stdClass
     {
         $this->setEndpoint('tweets');
-        return $this->sendRequest($params);
+        $this->setAction(Action::POST_TWITTER);
+        $this->setMethod(Methods::POST);
+        return $this->request($params, true);
     }
 }
