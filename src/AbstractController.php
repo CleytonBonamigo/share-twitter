@@ -146,74 +146,6 @@ abstract class AbstractController
     }
 
     /**
-     * Perform a request to Twitter API, with OAuth1.
-     * @param array<string> $data
-     * @param array<string>|null $headers
-     * @param string $bodyIndex
-     * @return mixed
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \JsonException
-     */
-    public function sendRequest(array $data = [], array $headers = null, string $bodyIndex = 'json'): mixed
-    {
-        try {
-            $defaulHeaders = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json'
-            ];
-            $stack = HandlerStack::create();
-            $middleware = new Oauth1([
-                'consumer_key' => $this->consumer_key,
-                'consumer_secret' => $this->consumer_secret,
-                'token' => $this->access_token,
-                'token_secret' => $this->access_token_secret
-            ]);
-            $stack->push($middleware);
-            $client = new Client([
-                'base_uri' => $this->getApiBaseUrl(),
-                'handler' => $stack,
-                'auth' => 'oauth'
-            ]);
-
-            $response = $client->request($this->getMethod()->value, $this->getEndpoint(), [
-                'verify' => false,
-                'headers' => $headers ?? $defaulHeaders,
-                // If you send an empty array, Twitter will return an error.
-                $bodyIndex => count($data) ? $data : null
-            ]);
-
-            $bodyContent = $response->getBody()->getContents();
-
-            // Some methods, like media APPENDS returns an empty body, but returns a 200 code
-            $successStatus = [200, 204];
-            if($bodyContent === '' && in_array($response->getStatusCode(), $successStatus)){
-                return '';
-            }
-
-            $body = json_decode($bodyContent, false, 512, JSON_THROW_ON_ERROR);
-            if($response->getStatusCode() >= 400){
-                $error = [
-                    'message' => "Error on endpoint {$this->getEndpoint()}"
-                ];
-                if($body){
-                    $error['details'] = $response;
-                }
-
-                throw new \RuntimeException(
-                    json_encode($error, JSON_THROW_ON_ERROR),
-                    $response->getStatusCode()
-                );
-            }
-
-            return $body;
-        } catch (\Throwable $e){
-            $payload = json_decode(str_replace("\n", "", $e->getResponse()->getBody()->getContents()), false, 512,
-                JSON_THROW_ON_ERROR);
-            throw new \RuntimeException($payload->details, $payload->status);
-        }
-    }
-
-    /**
      * Send request to API with CURL
      * @param array $postfields
      * @param bool $json
@@ -283,9 +215,7 @@ abstract class AbstractController
 
             return $body;
         }catch (\Throwable $e){
-            $payload = json_decode($e->getMessage(), false, 512,
-                JSON_THROW_ON_ERROR);
-            throw new \RuntimeException($payload->details, $payload->status);
+            throw new \RuntimeException($e->getMessage(), $e->getCode());
         }
     }
 
@@ -307,7 +237,7 @@ abstract class AbstractController
     public function getAuthorizationSignature(string $url, array $postfields = [])
     {
         $oauthVersion = '1.0';
-        $nonce = md5(microtime() . random_int(PHP_INT_MIN, PHP_INT_MAX));
+        $nonce = sha1(uniqid('', true) . str_replace(['https://', 'http://'], '', $url));
         $timestamp = time();
         $signatureMethod = 'HMAC-SHA1';
 
@@ -320,7 +250,11 @@ abstract class AbstractController
             'oauth_signature_method' => $signatureMethod
         ];
 
-        $signableParams = Util::buildHttpQuery(array_merge($signableParams, $postfields));
+        if(!($this->getAction() === Action::POST_TWITTER)){
+            $signableParams = Util::buildHttpQuery(array_merge($signableParams, $postfields));
+        }else{
+            $signableParams = Util::buildHttpQuery($signableParams);
+        }
 
         $parts = [
             strtoupper($this->getMethod()->value),
@@ -335,9 +269,9 @@ abstract class AbstractController
 
         $signature = Util::urlencodeRfc3986(base64_encode(hash_hmac('sha1', $signatureBase, $key, true)));
 
-        return 'Authorization: OAuth oauth_version="'.$oauthVersion.'", oauth_nonce="'.$nonce
-            .'", oauth_timestamp="'.$timestamp.'", oauth_consumer_key="'.$this->consumer_key.'", oauth_token="'.$this->access_token.
-            '", oauth_signature_method="'.$signatureMethod.'", oauth_signature="'.$signature.'"';
+        return 'Authorization: OAuth oauth_consumer_key="'.$this->consumer_key.'", oauth_nonce="'.$nonce
+            .'", oauth_signature="'.$signature.'", oauth_signature_method="'.$signatureMethod.'", oauth_timestamp="'.$timestamp.'"'.
+            ', oauth_token="'.$this->access_token.'", oauth_version="'.$oauthVersion.'"';
     }
 
     private function setPostfieldsOptions(
