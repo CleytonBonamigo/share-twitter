@@ -61,4 +61,41 @@ class Util
         // Each name-value pair is separated by an '&' character (ASCII code 38)
         return implode('&', $pairs);
     }
+
+    /**
+     * Return the default CURL Options.
+     * @return array
+     */
+    public static function curlOptions(): array
+    {
+        return [
+            // CURLOPT_VERBOSE => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HEADER => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_TIMEOUT => 5,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+            CURLOPT_ENCODING => 'gzip'
+        ];
+    }
+
+    /**
+     * Parse headers from CURL Request.
+     * @param string $header
+     * @return array
+     */
+    public static function parseHeaders(string $header): array
+    {
+        $headers = [];
+        foreach (explode("\r\n", $header) as $line) {
+            if (strpos($line, ':') !== false) {
+                [$key, $value] = explode(': ', $line);
+                $key = str_replace('-', '_', strtolower($key));
+                $headers[$key] = trim($value);
+            }
+        }
+        return $headers;
+    }
 }

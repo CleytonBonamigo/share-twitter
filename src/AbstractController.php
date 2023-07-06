@@ -1,17 +1,10 @@
 <?php
 
-declare(strict_types=1);
-
 namespace CleytonBonamigo\ShareTwitter;
 
 use CleytonBonamigo\ShareTwitter\Enums\Action;
-use CleytonBonamigo\ShareTwitter\Enums\APIMethods;
 use CleytonBonamigo\ShareTwitter\Enums\Methods;
 use CleytonBonamigo\ShareTwitter\Utils\Util;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ServerException;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Subscriber\Oauth\Oauth1;
 
 abstract class AbstractController
 {
@@ -21,7 +14,7 @@ abstract class AbstractController
     /** @const API_BASE_URL_UPLOAD */
     private const API_BASE_URL_UPLOAD = 'https://upload.twitter.com/1.1/';
 
-    /** @var APIMethods */
+    /** @var Methods */
     private Methods $method;
 
     /** @var Action */
@@ -156,8 +149,17 @@ abstract class AbstractController
     {
         try {
             $url = $this->getApiBaseUrl().$this->getEndpoint();
-            $authorization = $this->getAuthorizationSignature($url, $postfields);
-            $options = $this->curlOptions();
+            $signature = new Signature([
+                'access_token' => $this->access_token,
+                'access_token_secret' => $this->access_token_secret,
+                'consumer_key' => $this->consumer_key,
+                'consumer_secret' => $this->consumer_secret
+            ]);
+            $authorization = $signature->setUrl($url)
+                ->setAction($this->getAction())
+                ->setMethod($this->getMethod())
+                ->getAuthorizationSignature($postfields);
+            $options = Util::curlOptions();
             $options[CURLOPT_URL] = $url;
             $options[CURLOPT_HTTPHEADER] = [
                 'Accept: application/json',
@@ -194,7 +196,7 @@ abstract class AbstractController
             $parts = explode("\r\n", $response);
             $responseBody = array_pop($parts);
             $responseHeader = array_pop($parts);
-            $headers = $this->parseHeaders($responseHeader);
+            $headers = Util::parseHeaders($responseHeader);
 
             curl_close($curlHandle);
 
@@ -219,61 +221,14 @@ abstract class AbstractController
         }
     }
 
-    private function curlOptions(): array
-    {
-        return [
-            // CURLOPT_VERBOSE => true,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_HEADER => true,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_TIMEOUT => 5,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-            CURLOPT_ENCODING => 'gzip'
-        ];
-    }
-
-    public function getAuthorizationSignature(string $url, array $postfields = [])
-    {
-        $oauthVersion = '1.0';
-        $nonce = sha1(uniqid('', true) . str_replace(['https://', 'http://'], '', $url));
-        $timestamp = time();
-        $signatureMethod = 'HMAC-SHA1';
-
-        $signableParams = [
-            'oauth_version' => $oauthVersion,
-            'oauth_nonce' => $nonce,
-            'oauth_timestamp' => $timestamp,
-            'oauth_consumer_key' => $this->consumer_key,
-            'oauth_token' => $this->access_token,
-            'oauth_signature_method' => $signatureMethod
-        ];
-
-        if(!($this->getAction() === Action::POST_TWITTER)){
-            $signableParams = Util::buildHttpQuery(array_merge($signableParams, $postfields));
-        }else{
-            $signableParams = Util::buildHttpQuery($signableParams);
-        }
-
-        $parts = [
-            strtoupper($this->getMethod()->value),
-            $url,
-            $signableParams
-        ];
-
-        $signatureBase = implode('&', Util::urlencodeRfc3986($parts));
-
-        $parts = [$this->consumer_secret, $this->access_token_secret];
-        $key = implode('&', $parts);
-
-        $signature = Util::urlencodeRfc3986(base64_encode(hash_hmac('sha1', $signatureBase, $key, true)));
-
-        return 'Authorization: OAuth oauth_consumer_key="'.$this->consumer_key.'", oauth_nonce="'.$nonce
-            .'", oauth_signature="'.$signature.'", oauth_signature_method="'.$signatureMethod.'", oauth_timestamp="'.$timestamp.'"'.
-            ', oauth_token="'.$this->access_token.'", oauth_version="'.$oauthVersion.'"';
-    }
-
+    /**
+     * Set POST fields into CURL options.
+     * @param array $options
+     * @param array $postfields
+     * @param bool $json
+     * @return array
+     * @throws \JsonException
+     */
     private function setPostfieldsOptions(
         array $options,
         array $postfields,
@@ -290,18 +245,5 @@ abstract class AbstractController
         }
 
         return $options;
-    }
-
-    private function parseHeaders(string $header): array
-    {
-        $headers = [];
-        foreach (explode("\r\n", $header) as $line) {
-            if (strpos($line, ':') !== false) {
-                [$key, $value] = explode(': ', $line);
-                $key = str_replace('-', '_', strtolower($key));
-                $headers[$key] = trim($value);
-            }
-        }
-        return $headers;
     }
 }
