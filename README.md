@@ -3,10 +3,10 @@ Combination of API V1 and V2 for PHP with CURL instead of any other libraries,
 this is a pacjage that provides an easy and fast integration of Twitter.
 
 For now, it's not possible to upload files with API V2, that's why it's a combination 
-of them
+of them.
 
 ## Installation
-First you need to add the component to you composer.json
+First you need to add the component to you composer.json.
 ```
 composer require cleytonbonamigo/twitter-share
 ```
@@ -39,7 +39,7 @@ $client = new Client($settings);
 ### Media
 ```php
 $url = ''; //An URL or path to local file
-$return = $client->media()->uploadMediaFromUrl($url)
+$return = $client->media()->uploadMediaFromUrl($url);
 ```
 
 ```php
@@ -51,16 +51,17 @@ $tweet = [
         ]
     ]
 ];
-$client->tweet()->create(['text' => 'Test new tweet post with image complete flux', 'media' => ['media_ids' => [$media->media_id_string]]])
+
+$client->tweet()->create(['text' => 'Test new tweet post with image complete flux', 'media' => ['media_ids' => [$media->media_id_string]]]);
 ```
 
 ## Contributing
-Fork/download the code and run
+Fork/download the code and run.
 
 `composer install`
 
-copy `test/config/.env.example` to `test/config/.env` and add your credentials for testing.
+Copy `test/config/.env.example` to `test/config/.env` and add your credentials for testing.
 
 ### To run tests
 
-`./vendor/bin/phpunit`
+`./vendor/bin/phpunit` or `composer test`.
