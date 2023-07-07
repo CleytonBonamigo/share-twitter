@@ -18,7 +18,7 @@ class TweetTest extends BaseTestCase
                 'text' => "Test Tweet {$date->format(\DateTimeInterface::ATOM)}"
             ]);
 
-            self::assertTrue(is_object($response) && property_exists($response, 'data'));
+            $this->assertTrue(is_object($response) && property_exists($response, 'data'));
         }catch (Exception $e){
             $this->fail("Test failed: {$e->getMessage()}\n{$e->getTraceAsString()}");
         }
@@ -41,7 +41,7 @@ class TweetTest extends BaseTestCase
                 ]
             ]);
 
-            self::assertTrue(is_object($response) && property_exists($response, 'data'));
+            $this->assertTrue(is_object($response) && property_exists($response, 'data'));
         }catch (Exception $e){
             $this->fail("Test failed: {$e->getMessage()}\n{$e->getTraceAsString()}");
         }

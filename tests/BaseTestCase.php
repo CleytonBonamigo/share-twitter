@@ -5,6 +5,7 @@ namespace CleytonBonamigo\ShareTwitter\Tests;
 use CleytonBonamigo\ShareTwitter\Client;
 use Dotenv\Dotenv;
 use PHPUnit\Framework\TestCase;
+use Exception;
 
 abstract class BaseTestCase extends TestCase
 {
@@ -36,7 +37,7 @@ abstract class BaseTestCase extends TestCase
         try{
             $response = $this->client->media()->uploadMediaFromUrl(__DIR__.'/twitter-logo.jpg');
 
-            self::assertTrue(is_object($response) && property_exists($response, 'media_id'));
+            $this->assertTrue(is_object($response) && property_exists($response, 'media_id'));
 
             return $response;
         }catch (Exception $e){
