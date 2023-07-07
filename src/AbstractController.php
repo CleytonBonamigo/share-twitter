@@ -23,17 +23,8 @@ abstract class AbstractController
     /** @var string */
     private string $enpoint = '';
 
-    /** @var string */
-    private string $access_token;
-
-    /** @var string */
-    private string $access_token_secret;
-
-    /** @var string */
-    private string $consumer_key;
-
-    /** @var string */
-    private string $consumer_secret;
+    /** @var array<string> */
+    private array $configs;
 
     /**
      * Abstract Class Constructor
@@ -112,30 +103,36 @@ abstract class AbstractController
      * Retrieve endpoint value
      * @return string
      */
-    protected function getEndpoint(): string
+    public function getEndpoint(): string
     {
         return $this->endpoint;
     }
 
     /**
-     * @param array<string> $settings
+     * @param array<string> $configs
      * @return void
      * @throws \Exception
      */
-    public function parseSettings(array $settings): void
+    public function parseSettings(array $configs): void
     {
-        if(!isset($settings[ 'access_token'],
-            $settings['access_token_secret'],
-            $settings['consumer_key'],
-            $settings['consumer_secret']
+        if(!isset($configs[ 'access_token'],
+            $configs['access_token_secret'],
+            $configs['consumer_key'],
+            $configs['consumer_secret']
         )){
             throw new \Exception('Incomplete settings');
         }
 
-        $this->access_token = $settings['access_token'];
-        $this->access_token_secret = $settings['access_token_secret'];
-        $this->consumer_key = $settings['consumer_key'];
-        $this->consumer_secret = $settings['consumer_secret'];
+        $this->configs = $configs;
+    }
+
+    /**
+     * Retrieve the Configs for Authorization, uset inside Signature class
+     * @return array<string>
+     */
+    public function getConfigs(): array
+    {
+        return $this->configs;
     }
 
     /**
@@ -143,22 +140,12 @@ abstract class AbstractController
      * @param array $postfields
      * @param bool $json
      * @return \stdClass
-     * @throws \JsonException
      */
     public function request(array $postfields, bool $json = false): \stdClass
     {
         try {
             $url = $this->getApiBaseUrl().$this->getEndpoint();
-            $signature = new Signature([
-                'access_token' => $this->access_token,
-                'access_token_secret' => $this->access_token_secret,
-                'consumer_key' => $this->consumer_key,
-                'consumer_secret' => $this->consumer_secret
-            ]);
-            $authorization = $signature->setUrl($url)
-                ->setAction($this->getAction())
-                ->setMethod($this->getMethod())
-                ->getAuthorizationSignature($postfields);
+            $authorization = (new Signature($this))->authorize($postfields);
             $options = Util::curlOptions();
             $options[CURLOPT_URL] = $url;
             $options[CURLOPT_HTTPHEADER] = [
@@ -222,7 +209,7 @@ abstract class AbstractController
     }
 
     /**
-     * Set POST fields into CURL options.
+     * Set the POST Fields when the request is POST.
      * @param array $options
      * @param array $postfields
      * @param bool $json
